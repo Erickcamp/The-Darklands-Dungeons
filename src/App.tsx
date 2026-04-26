@@ -113,6 +113,7 @@ export default function App() {
           <div className="panel-title">⚒ Wandering Merchant ⚒</div>
           <div id="shop-gold" style={{ textAlign: 'center', color: '#ffd700', marginBottom: 8, fontSize: 12 }}></div>
           <div id="shop-items"></div>
+          <div id="shop-sell"></div>
           <div style={{ textAlign: 'center', marginTop: 10 }}><button className="big-btn" onClick={closeAllPanels}>Close</button></div>
         </div>
 

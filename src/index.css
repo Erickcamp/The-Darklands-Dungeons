@@ -33,6 +33,8 @@ canvas { display: block; }
 .equip-slot { display: flex; justify-content: space-between; align-items: center; padding: 4px 6px; margin: 2px 0; background: #1a0f05; border: 1px solid #3a2a0e; border-radius: 2px; font-size: 11px; }
 .equip-slot .slot-name { color: #888; }
 .equip-slot .slot-item { color: #c8a96e; }
+.equip-slot .slot-item.equipped-active { cursor: pointer; }
+.equip-slot .slot-item.equipped-active:hover { color: #fff; text-decoration: underline dotted; }
 .rarity-magic { color: #6060ff !important; }
 .rarity-rare { color: #ffff00 !important; }
 .rarity-unique { color: #a06000 !important; }

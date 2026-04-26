@@ -560,14 +560,33 @@ function updatePotionBelt() {
 
 function renderInventory() {
   const eq = G.equipped;
-  const setText = (id, item) => {
+  const setText = (id, item, slotKey) => {
     const el = document.getElementById(id);
-    if (item) { el.textContent = item.name; el.className = 'slot-item rarity-' + item.rarity; }
-    else { el.textContent = 'None'; el.className = 'slot-item'; }
+    if (item) {
+      el.textContent = item.name;
+      el.className = 'slot-item rarity-' + item.rarity + ' equipped-active';
+      el.title = 'Click to unequip';
+      el.onmouseenter = (ev) => showTooltip(ev, item);
+      el.onmouseleave = hideTooltip;
+      el.onclick = () => unequipItem(slotKey);
+    } else {
+      el.textContent = 'None';
+      el.className = 'slot-item';
+      el.title = '';
+      el.onmouseenter = null; el.onmouseleave = null; el.onclick = null;
+    }
   };
-  setText('eq-weapon', eq.weapon); setText('eq-armor', eq.armor); setText('eq-helm', eq.helm); setText('eq-boots', eq.boots);
-  setText('eq-shoulders', eq.shoulders); setText('eq-gloves', eq.gloves); setText('eq-cape', eq.cape); setText('eq-legs', eq.legs); setText('eq-neck', eq.neck);
-  setText('eq-ring1', eq.ring1); setText('eq-ring2', eq.ring2);
+  setText('eq-weapon',    eq.weapon,    'weapon');
+  setText('eq-armor',     eq.armor,     'armor');
+  setText('eq-helm',      eq.helm,      'helm');
+  setText('eq-boots',     eq.boots,     'boots');
+  setText('eq-shoulders', eq.shoulders, 'shoulders');
+  setText('eq-gloves',    eq.gloves,    'gloves');
+  setText('eq-cape',      eq.cape,      'cape');
+  setText('eq-legs',      eq.legs,      'legs');
+  setText('eq-neck',      eq.neck,      'neck');
+  setText('eq-ring1',     eq.ring1,     'ring1');
+  setText('eq-ring2',     eq.ring2,     'ring2');
   const bagEl = document.getElementById('bag');
   bagEl.innerHTML = '';
   G.bag.forEach(item => {
@@ -577,6 +596,12 @@ function renderInventory() {
     div.onclick = () => equipOrUseItem(item);
     div.onmouseenter = (ev) => showTooltip(ev, item);
     div.onmouseleave = hideTooltip;
+    div.oncontextmenu = (e) => {
+      e.preventDefault(); hideTooltip();
+      G.bag = G.bag.filter(i => i.id !== item.id);
+      addMsg(`Dropped: ${item.name}`, '#666');
+      renderInventory();
+    };
     bagEl.appendChild(div);
   });
   const totalDmg = G.player.dmg + (eq.weapon ? (eq.weapon.dmg || 0) : 0) + (eq.gloves ? (eq.gloves.dmg || 0) : 0) + (eq.ring1 ? (eq.ring1.dmg || 0) : 0) + (eq.ring2 ? (eq.ring2.dmg || 0) : 0) + G.player.buffDmg;
@@ -614,7 +639,38 @@ function showTooltip(e, item) {
 }
 function hideTooltip() { document.getElementById('tooltip').style.display = 'none'; }
 
+function unequipItem(slotKey) {
+  hideTooltip();
+  const item = G.equipped[slotKey];
+  if (!item) return;
+  if (G.bag.length >= 20) { addMsg('Inventory full — cannot unequip!', '#ff4444'); return; }
+  G.bag.push(item);
+  G.equipped[slotKey] = null;
+  addMsg(`Unequipped: ${item.name}`, '#888');
+  renderInventory(); updatePotionBelt();
+}
+
+function getSellPrice(item) {
+  const rarityMult = { normal: 1, magic: 3.5, rare: 8, unique: 25 };
+  return item.price
+    ? Math.max(1, Math.round(item.price * 0.35))
+    : Math.round(10 * (rarityMult[item.rarity] || 1));
+}
+
+function sellBagItem(id) {
+  hideTooltip();
+  const item = G.bag.find(i => i.id === id);
+  if (!item) return;
+  const price = getSellPrice(item);
+  G.bag = G.bag.filter(i => i.id !== id);
+  G.gold += price;
+  document.getElementById('gold-display').textContent = '⬡ ' + G.gold + ' Gold';
+  addMsg(`Sold ${item.name} for ⬡${price}`, '#ffd700');
+  renderShop(); updatePotionBelt();
+}
+
 function equipOrUseItem(item) {
+  hideTooltip();
   if (item.base === 'consumable') {
     if (item.hpRestore) { G.player.hp = Math.min(G.player.maxHp, G.player.hp + item.hpRestore); addMsg(`Used ${item.name}: +${item.hpRestore} HP`, '#44ff44'); }
     if (item.mpRestore) { G.player.mp = Math.min(G.player.maxMp, G.player.mp + item.mpRestore); addMsg(`Used ${item.name}: +${item.mpRestore} MP`, '#6060ff'); }
@@ -1267,6 +1323,23 @@ function renderShop() {
     div.onmouseenter = e => showTooltip(e, item); div.onmouseleave = hideTooltip;
     container.appendChild(div);
   });
+  // Sell section
+  const sellEl = document.getElementById('shop-sell');
+  sellEl.innerHTML = '<div class="panel-title" style="font-size:11px;margin-top:10px;border-top:1px solid #3a2a0e;padding-top:8px;">↑ Sell to Merchant</div>';
+  const sellable = G.bag.filter(i => i.base !== 'consumable');
+  if (sellable.length === 0) {
+    sellEl.innerHTML += '<div style="font-size:11px;color:#555;text-align:center;padding:4px 0;">— No gear to sell —</div>';
+  } else {
+    sellable.forEach(item => {
+      const price = getSellPrice(item);
+      const div = document.createElement('div');
+      div.className = 'shop-item';
+      div.innerHTML = `<span><span style="font-size:15px;">${item.icon}</span> <span class="rarity-${item.rarity}">${item.name}</span></span>` +
+        `<button class="upg-btn" onclick="sellBagItem('${item.id}')">⬡${price}</button>`;
+      div.onmouseenter = e => showTooltip(e, item); div.onmouseleave = hideTooltip;
+      sellEl.appendChild(div);
+    });
+  }
 }
 function buyShopItem(i) {
   const item = shopInventory[i];
@@ -1856,6 +1929,7 @@ export function initEngine() {
     selectClass, toggleInventory, usePotionBelt, showSkillTree, closeAllPanels,
     depositGold, withdrawGold, pushDeeper, returnToHub, loadHub,
     buyShopItem, buyUpgrade, spendSkillPoint, stashToBag, bagToStash,
+    sellBagItem, unequipItem,
   });
 }
 
