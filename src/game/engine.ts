@@ -1673,13 +1673,69 @@ function render() {
         }
       }
       if (!usedSprite) drawEnemySprite(en, sx, sy);
-      if (!en.dying && en.hp < en.maxHp) {
-        const bw = en.size*2+8, hpPct = en.hp/en.maxHp;
-        const barY = sy - (usedSprite ? sprAY + 8 : en.size*1.8 + 6);
-        ctx.fillStyle = '#300'; ctx.fillRect(sx-bw/2, barY, bw, 5);
-        ctx.fillStyle = hpPct>0.5?'#0f0':hpPct>0.25?'#fa0':'#f00';
-        ctx.fillRect(sx-bw/2, barY, bw*hpPct, 5);
-        if (en.boss) { ctx.fillStyle='#ffd700'; ctx.font='10px Georgia'; ctx.textAlign='center'; ctx.fillText(en.name,sx,barY-6); }
+      if (!en.dying) {
+        const bw = en.boss ? 90 : Math.max(44, en.size * 2.4);
+        const bh = en.boss ? 8 : 6;
+        const hpPct = Math.max(0, en.hp / en.maxHp);
+        const barX = sx - bw / 2;
+        const barY = sy - (usedSprite ? sprAY + 16 : en.size * 2 + 16);
+
+        // bar fill colour: green → yellow → red
+        const barColor = hpPct > 0.6 ? '#26d448' : hpPct > 0.3 ? '#f5c518' : '#e02010';
+
+        // drop shadow behind the whole block
+        ctx.save();
+        ctx.shadowColor = 'rgba(0,0,0,0.85)';
+        ctx.shadowBlur = 4;
+
+        // dark trough
+        ctx.fillStyle = '#1c0a0a';
+        ctx.beginPath();
+        ctx.roundRect(barX, barY, bw, bh, 3);
+        ctx.fill();
+
+        // coloured fill
+        if (hpPct > 0) {
+          ctx.fillStyle = barColor;
+          ctx.beginPath();
+          ctx.roundRect(barX, barY, bw * hpPct, bh, hpPct < 1 ? [3, 1, 1, 3] : 3);
+          ctx.fill();
+
+          // subtle highlight stripe on top half of fill
+          ctx.fillStyle = 'rgba(255,255,255,0.14)';
+          ctx.beginPath();
+          ctx.roundRect(barX, barY, bw * hpPct, bh / 2, hpPct < 1 ? [3, 1, 0, 0] : [3, 3, 0, 0]);
+          ctx.fill();
+        }
+
+        // border
+        ctx.strokeStyle = 'rgba(0,0,0,0.75)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.roundRect(barX, barY, bw, bh, 3);
+        ctx.stroke();
+
+        ctx.shadowBlur = 0;
+
+        // hp numbers (current / max) — centred just above the bar
+        ctx.font = `bold ${en.boss ? 10 : 9}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.fillStyle = '#fff';
+        ctx.shadowColor = '#000';
+        ctx.shadowBlur = 3;
+        ctx.fillText(`${en.hp} / ${en.maxHp}`, sx, barY - 2);
+
+        // enemy name above the hp numbers
+        const nameColor = en.boss ? '#ffd700' : '#c8b89a';
+        ctx.font = en.boss ? 'bold 11px Georgia' : '10px Georgia';
+        ctx.fillStyle = nameColor;
+        ctx.shadowBlur = 4;
+        ctx.fillText(en.name, sx, barY - (en.boss ? 14 : 13));
+
+        ctx.shadowBlur = 0;
+        ctx.textBaseline = 'alphabetic';
+        ctx.restore();
       }
     }});
   });
