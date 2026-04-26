@@ -840,6 +840,7 @@ function dropLoot(en) {
     if (drop.type==='gold') { el.className='loot-label gold-loot'; el.textContent='⬡ '+drop.amount+' Gold'; }
     else { el.className='loot-label '+(drop.rarity!=='normal'?drop.rarity:''); el.textContent=drop.icon+' '+drop.name; }
     el.style.position='absolute';
+    el.onclick = () => pickupLoot(id);
     document.getElementById('ui').appendChild(el);
   });
 }
@@ -1678,7 +1679,7 @@ function render() {
         const bh = en.boss ? 8 : 6;
         const hpPct = Math.max(0, en.hp / en.maxHp);
         const barX = sx - bw / 2;
-        const barY = sy - (usedSprite ? sprAY + 16 : en.size * 2 + 16);
+        const barY = sy - (usedSprite ? 80 : Math.max(30, en.size * 1.5 + 8));
 
         // bar fill colour: green → yellow → red
         const barColor = hpPct > 0.6 ? '#26d448' : hpPct > 0.3 ? '#f5c518' : '#e02010';
