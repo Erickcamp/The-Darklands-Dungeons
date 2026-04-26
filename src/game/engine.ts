@@ -859,7 +859,10 @@ function updateEnemyCounter() {
 }
 
 function giveXP(amt) {
-  const p = G.player; p.xp += amt;
+  const p = G.player;
+  const xpMult = G.runBlessing?.xpMult || 1;
+  amt = Math.round(amt * 1.5 * xpMult);
+  p.xp += amt;
   spawnFloatingText(p.x, p.y - 20, '+'+amt+' XP', 'exp');
   while (p.xp >= p.xpNext) {
     p.xp -= p.xpNext; p.level++;
@@ -887,6 +890,13 @@ function dropLoot(en) {
   if (r < 0.6 || en.boss) { const g = Math.round((5+Math.random()*20)*goldMult*(en.boss?5:1)); drops.push({type:'gold',amount:g}); }
   if (en.boss) drops.push(rollItem(depth * 2 + G.player.level + 2));
   if (Math.random() < (en.boss ? 0.05 : 0.005)) drops.push(rollUnique());
+  // Potion drops
+  const potRoll = Math.random();
+  if (potRoll < (en.boss ? 0.40 : 0.07)) {
+    drops.push({ ...ITEM_TEMPLATES.consumable[0], id: Math.random().toString(36).slice(2), rarity: 'normal' });
+  } else if (potRoll < (en.boss ? 0.70 : 0.12)) {
+    drops.push({ ...ITEM_TEMPLATES.consumable[1], id: Math.random().toString(36).slice(2), rarity: 'normal' });
+  }
   drops.forEach(drop => {
     const ox = en.x+(Math.random()-0.5)*40, oy = en.y+(Math.random()-0.5)*40;
     const id = Math.random().toString(36).slice(2);
@@ -1314,6 +1324,30 @@ function renderShop() {
   document.getElementById('shop-gold').textContent = 'Your gold: ⬡ ' + G.gold;
   const container = document.getElementById('shop-items');
   container.innerHTML = '';
+  // Always-available potions
+  const depth = Math.max(1, G.persistent?.lastDepth || 1);
+  const potions = [
+    { type: 'hp', icon: '🧪', name: 'Healing Potion', price: Math.round(18 + depth * 4) },
+    { type: 'mp', icon: '💧', name: 'Mana Potion',    price: Math.round(14 + depth * 3) },
+  ];
+  const potTitle = document.createElement('div');
+  potTitle.className = 'panel-title';
+  potTitle.style.cssText = 'font-size:11px;margin-bottom:4px;';
+  potTitle.textContent = '⚗ Potions — always in stock';
+  container.appendChild(potTitle);
+  potions.forEach(p => {
+    const div = document.createElement('div');
+    div.className = 'shop-item';
+    div.innerHTML = `<span><span style="font-size:15px;">${p.icon}</span> ${p.name}</span>` +
+      `<button class="upg-btn" ${G.gold < p.price ? 'disabled' : ''} onclick="buyPotion('${p.type}')">⬡${p.price}</button>`;
+    container.appendChild(div);
+  });
+  // Random gear
+  const gearTitle = document.createElement('div');
+  gearTitle.className = 'panel-title';
+  gearTitle.style.cssText = 'font-size:11px;margin-top:10px;margin-bottom:4px;';
+  gearTitle.textContent = '⚒ Gear';
+  container.appendChild(gearTitle);
   shopInventory.forEach((item, i) => {
     if (!item) return;
     const div = document.createElement('div');
@@ -1348,6 +1382,19 @@ function buyShopItem(i) {
   G.gold -= item.price; G.bag.push(item); shopInventory[i] = null;
   document.getElementById('gold-display').textContent = '⬡ ' + G.gold + ' Gold';
   addMsg('Bought: ' + item.name, RARITY_COLORS[item.rarity]);
+  updatePotionBelt(); renderShop();
+}
+function buyPotion(type) {
+  if (!G.player) return;
+  if (G.bag.length >= 20) { addMsg('Inventory full!', '#ff4444'); return; }
+  const depth = Math.max(1, G.persistent?.lastDepth || 1);
+  const price = type === 'hp' ? Math.round(18 + depth * 4) : Math.round(14 + depth * 3);
+  if (G.gold < price) { addMsg('Not enough gold!', '#ff4444'); return; }
+  G.gold -= price;
+  const template = type === 'hp' ? ITEM_TEMPLATES.consumable[0] : ITEM_TEMPLATES.consumable[1];
+  G.bag.push({ ...template, id: Math.random().toString(36).slice(2), rarity: 'normal' });
+  document.getElementById('gold-display').textContent = '⬡ ' + G.gold + ' Gold';
+  addMsg(`Bought ${template.name}`, '#44ff44');
   updatePotionBelt(); renderShop();
 }
 
@@ -1929,7 +1976,7 @@ export function initEngine() {
     selectClass, toggleInventory, usePotionBelt, showSkillTree, closeAllPanels,
     depositGold, withdrawGold, pushDeeper, returnToHub, loadHub,
     buyShopItem, buyUpgrade, spendSkillPoint, stashToBag, bagToStash,
-    sellBagItem, unequipItem,
+    sellBagItem, unequipItem, buyPotion,
   });
 }
 
